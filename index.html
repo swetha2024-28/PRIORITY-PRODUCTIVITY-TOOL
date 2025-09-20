@@ -320,6 +320,110 @@
             transition: width 0.3s;
         }
         
+        .auth-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            padding: 32px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .auth-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+        
+        .auth-tab {
+            flex: 1;
+            padding: 8px 16px;
+            background: #f3f4f6;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .auth-tab.active {
+            background: #4f46e5;
+            color: white;
+        }
+        
+        .auth-error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .password-strength {
+            font-size: 12px;
+            margin-top: 4px;
+        }
+        
+        .auth-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            padding: 32px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .auth-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+        
+        .auth-tab {
+            flex: 1;
+            padding: 8px 16px;
+            background: #f3f4f6;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .auth-tab.active {
+            background: #4f46e5;
+            color: white;
+        }
+        
+        .auth-error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .password-strength {
+            font-size: 12px;
+            margin-top: 4px;
+        }
+        
+        .strength-weak { color: #dc2626; }
+        .strength-medium { color: #f59e0b; }
+        .strength-strong { color: #10b981; }
+        
         .user-header {
             background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
             color: white;
@@ -460,7 +564,7 @@
         const { useState, useEffect, createElement: e } = React;
 
         const SmartTaskPrioritizer = () => {
-          // User profile state
+          // Authentication state
           const [currentUser, setCurrentUser] = useState(() => {
             try {
               return localStorage.getItem('smartTaskPrioritizer-currentUser') || null;
@@ -478,8 +582,11 @@
             }
           });
           
-          const [showUserForm, setShowUserForm] = useState(false);
-          const [newUserName, setNewUserName] = useState('');
+          const [showLoginForm, setShowLoginForm] = useState(false);
+          const [showRegisterForm, setShowRegisterForm] = useState(false);
+          const [loginData, setLoginData] = useState({ username: '', password: '' });
+          const [registerData, setRegisterData] = useState({ username: '', password: '', confirmPassword: '' });
+          const [authError, setAuthError] = useState('');
           
           // Load tasks for current user
           const [tasks, setTasks] = useState(() => {
@@ -516,14 +623,13 @@
               const updatedUsers = {
                 ...users,
                 [currentUser]: {
-                  name: currentUser,
+                  ...users[currentUser],
                   tasks: tasks,
                   lastActive: new Date().toISOString()
                 }
               };
               setUsers(updatedUsers);
               localStorage.setItem('smartTaskPrioritizer-users', JSON.stringify(updatedUsers));
-              localStorage.setItem('smartTaskPrioritizer-currentUser', currentUser);
             } catch (error) {
               console.error('Error saving user data:', error);
             }
@@ -536,54 +642,119 @@
             }
           }, [tasks, currentUser]);
 
-          // User management functions
-          const createUser = () => {
-            if (newUserName.trim() && !users[newUserName.trim()]) {
-              const userName = newUserName.trim();
-              const newUsers = {
-                ...users,
-                [userName]: {
-                  name: userName,
-                  tasks: [],
-                  createdAt: new Date().toISOString(),
-                  lastActive: new Date().toISOString()
-                }
-              };
-              setUsers(newUsers);
-              setCurrentUser(userName);
-              setTasks([]);
-              setNewUserName('');
-              setShowUserForm(false);
-              localStorage.setItem('smartTaskPrioritizer-users', JSON.stringify(newUsers));
-              localStorage.setItem('smartTaskPrioritizer-currentUser', userName);
+          // Simple password hashing (note: in production, use proper server-side hashing)
+          const hashPassword = (password) => {
+            let hash = 0;
+            for (let i = 0; i < password.length; i++) {
+              const char = password.charCodeAt(i);
+              hash = ((hash << 5) - hash) + char;
+              hash = hash & hash; // Convert to 32-bit integer
             }
+            return hash.toString();
           };
 
-          const switchUser = (userName) => {
-            setCurrentUser(userName);
-            const userData = users[userName];
-            setTasks(userData ? userData.tasks : []);
-            localStorage.setItem('smartTaskPrioritizer-currentUser', userName);
-          };
-
-          const deleteUser = (userName) => {
-            if (confirm(`Are you sure you want to delete ${userName}'s profile and all their tasks?`)) {
-              const newUsers = { ...users };
-              delete newUsers[userName];
-              setUsers(newUsers);
-              localStorage.setItem('smartTaskPrioritizer-users', JSON.stringify(newUsers));
-              
-              if (currentUser === userName) {
-                const remainingUsers = Object.keys(newUsers);
-                if (remainingUsers.length > 0) {
-                  switchUser(remainingUsers[0]);
-                } else {
-                  setCurrentUser(null);
-                  setTasks([]);
-                  localStorage.removeItem('smartTaskPrioritizer-currentUser');
-                }
+          // Authentication functions
+          const register = () => {
+            setAuthError('');
+            
+            if (!registerData.username.trim()) {
+              setAuthError('Username is required');
+              return;
+            }
+            
+            if (registerData.username.length < 3) {
+              setAuthError('Username must be at least 3 characters long');
+              return;
+            }
+            
+            if (!registerData.password) {
+              setAuthError('Password is required');
+              return;
+            }
+            
+            if (registerData.password.length < 6) {
+              setAuthError('Password must be at least 6 characters long');
+              return;
+            }
+            
+            if (registerData.password !== registerData.confirmPassword) {
+              setAuthError('Passwords do not match');
+              return;
+            }
+            
+            if (users[registerData.username.trim()]) {
+              setAuthError('Username already exists');
+              return;
+            }
+            
+            const username = registerData.username.trim();
+            const hashedPassword = hashPassword(registerData.password);
+            
+            const newUsers = {
+              ...users,
+              [username]: {
+                username: username,
+                password: hashedPassword,
+                tasks: [],
+                createdAt: new Date().toISOString(),
+                lastActive: new Date().toISOString()
               }
+            };
+            
+            setUsers(newUsers);
+            setCurrentUser(username);
+            setTasks([]);
+            setRegisterData({ username: '', password: '', confirmPassword: '' });
+            setShowRegisterForm(false);
+            localStorage.setItem('smartTaskPrioritizer-users', JSON.stringify(newUsers));
+            localStorage.setItem('smartTaskPrioritizer-currentUser', username);
+          };
+
+          const login = () => {
+            setAuthError('');
+            
+            if (!loginData.username.trim() || !loginData.password) {
+              setAuthError('Please enter both username and password');
+              return;
             }
+            
+            const username = loginData.username.trim();
+            const user = users[username];
+            
+            if (!user) {
+              setAuthError('Username not found');
+              return;
+            }
+            
+            const hashedPassword = hashPassword(loginData.password);
+            if (user.password !== hashedPassword) {
+              setAuthError('Incorrect password');
+              return;
+            }
+            
+            setCurrentUser(username);
+            setTasks(user.tasks || []);
+            setLoginData({ username: '', password: '' });
+            setShowLoginForm(false);
+            localStorage.setItem('smartTaskPrioritizer-currentUser', username);
+            
+            // Update last active
+            const updatedUsers = {
+              ...users,
+              [username]: {
+                ...user,
+                lastActive: new Date().toISOString()
+              }
+            };
+            setUsers(updatedUsers);
+            localStorage.setItem('smartTaskPrioritizer-users', JSON.stringify(updatedUsers));
+          };
+
+          const logout = () => {
+            setCurrentUser(null);
+            setTasks([]);
+            localStorage.removeItem('smartTaskPrioritizer-currentUser');
+            setAuthError('');
           };
 
           // Save tasks to localStorage whenever tasks change
@@ -709,52 +880,130 @@
             return `📅 ${diffDays} days left`;
           };
 
-          // If no user is selected, show welcome screen
+          // Password strength checker
+          const getPasswordStrength = (password) => {
+            if (password.length < 6) return { strength: 'weak', text: 'Password too short' };
+            if (password.length >= 6 && password.length < 10) return { strength: 'medium', text: 'Medium strength' };
+            if (password.length >= 10) return { strength: 'strong', text: 'Strong password' };
+          };
+
+          // If no user is logged in, show authentication screen
           if (!currentUser) {
             return e('div', { className: "container" },
-              e('div', { className: "welcome-screen" },
-                e('div', { className: "welcome-icon" }, "👋"),
-                e('h1', { className: "title" }, "Welcome to Smart Task Prioritizer"),
-                e('p', { className: "text-lg text-gray-600 mb-8" }, "Create your profile to get started with intelligent task management"),
-                
-                // User creation form
-                e('div', { className: "user-form", style: { justifyContent: 'center', marginBottom: '24px' } },
-                  e('input', {
-                    type: "text",
-                    placeholder: "Enter your name",
-                    value: newUserName,
-                    onChange: (event) => setNewUserName(event.target.value),
-                    onKeyPress: (event) => event.key === 'Enter' && createUser(),
-                    style: { width: '250px' }
-                  }),
-                  e('button', {
-                    onClick: createUser,
-                    className: "btn btn-primary",
-                    disabled: !newUserName.trim()
-                  }, "Create Profile")
+              e('div', { style: { paddingTop: '60px' } },
+                e('h1', { className: "title" },
+                  e('span', { className: "icon" }, "🎯"),
+                  "Smart Task Prioritizer"
                 ),
-                
-                // Existing users
-                Object.keys(users).length > 0 && e('div', {},
-                  e('p', { className: "text-gray-600 mb-4" }, "Or choose an existing profile:"),
-                  e('div', { className: "user-list", style: { justifyContent: 'center' } },
-                    Object.keys(users).map(userName => 
-                      e('button', {
-                        key: userName,
-                        onClick: () => switchUser(userName),
-                        className: "user-chip"
-                      },
-                        e('span', {}, userName),
-                        e('button', {
-                          onClick: (event) => {
-                            event.stopPropagation();
-                            deleteUser(userName);
-                          },
-                          className: "delete-user"
-                        }, "×")
-                      )
+                e('div', { className: "auth-container" },
+                  // Auth tabs
+                  e('div', { className: "auth-tabs" },
+                    e('button', {
+                      className: `auth-tab ${!showRegisterForm ? 'active' : ''}`,
+                      onClick: () => {
+                        setShowRegisterForm(false);
+                        setShowLoginForm(true);
+                        setAuthError('');
+                      }
+                    }, "Login"),
+                    e('button', {
+                      className: `auth-tab ${showRegisterForm ? 'active' : ''}`,
+                      onClick: () => {
+                        setShowRegisterForm(true);
+                        setShowLoginForm(false);
+                        setAuthError('');
+                      }
+                    }, "Register")
+                  ),
+                  
+                  // Error message
+                  authError && e('div', { className: "auth-error" }, authError),
+                  
+                  // Login Form
+                  !showRegisterForm && e('div', { className: "auth-form" },
+                    e('div', {},
+                      e('label', {}, "Username"),
+                      e('input', {
+                        type: "text",
+                        value: loginData.username,
+                        onChange: (event) => setLoginData({...loginData, username: event.target.value}),
+                        className: "input-full",
+                        placeholder: "Enter your username",
+                        onKeyPress: (event) => event.key === 'Enter' && login()
+                      })
+                    ),
+                    e('div', {},
+                      e('label', {}, "Password"),
+                      e('input', {
+                        type: "password",
+                        value: loginData.password,
+                        onChange: (event) => setLoginData({...loginData, password: event.target.value}),
+                        className: "input-full",
+                        placeholder: "Enter your password",
+                        onKeyPress: (event) => event.key === 'Enter' && login()
+                      })
+                    ),
+                    e('button', {
+                      onClick: login,
+                      className: "btn btn-primary",
+                      disabled: !loginData.username.trim() || !loginData.password
+                    }, "Login"),
+                    e('p', { className: "text-center text-gray-600 text-sm" }, 
+                      "Don't have an account? Click Register above to create one."
+                    )
+                  ),
+                  
+                  // Register Form
+                  showRegisterForm && e('div', { className: "auth-form" },
+                    e('div', {},
+                      e('label', {}, "Username"),
+                      e('input', {
+                        type: "text",
+                        value: registerData.username,
+                        onChange: (event) => setRegisterData({...registerData, username: event.target.value}),
+                        className: "input-full",
+                        placeholder: "Choose a username (min 3 characters)"
+                      })
+                    ),
+                    e('div', {},
+                      e('label', {}, "Password"),
+                      e('input', {
+                        type: "password",
+                        value: registerData.password,
+                        onChange: (event) => setRegisterData({...registerData, password: event.target.value}),
+                        className: "input-full",
+                        placeholder: "Choose a password (min 6 characters)"
+                      }),
+                      registerData.password && e('div', {
+                        className: `password-strength strength-${getPasswordStrength(registerData.password).strength}`
+                      }, getPasswordStrength(registerData.password).text)
+                    ),
+                    e('div', {},
+                      e('label', {}, "Confirm Password"),
+                      e('input', {
+                        type: "password",
+                        value: registerData.confirmPassword,
+                        onChange: (event) => setRegisterData({...registerData, confirmPassword: event.target.value}),
+                        className: "input-full",
+                        placeholder: "Confirm your password",
+                        onKeyPress: (event) => event.key === 'Enter' && register()
+                      })
+                    ),
+                    e('button', {
+                      onClick: register,
+                      className: "btn btn-primary",
+                      disabled: !registerData.username.trim() || !registerData.password || !registerData.confirmPassword
+                    }, "Create Account"),
+                    e('p', { className: "text-center text-gray-600 text-sm" }, 
+                      "Already have an account? Click Login above."
                     )
                   )
+                ),
+                
+                // Demo info
+                e('div', { className: "text-center mt-8" },
+                  e('p', { className: "text-gray-500 text-sm mb-2" }, "✨ Demo Mode - Data stored in browser localStorage"),
+                  e('p', { className: "text-gray-500 text-xs" }, "In production, this would use a secure server database")
                 )
               )
             );
@@ -769,52 +1018,10 @@
                   e('p', { className: "opacity-90" }, `You have ${tasks.filter(t => !t.completed).length} active tasks`)
                 ),
                 e('button', {
-                  onClick: () => setShowUserForm(!showUserForm),
+                  onClick: logout,
                   className: "btn btn-secondary",
                   style: { background: 'rgba(255,255,255,0.2)', color: 'white', border: 'none' }
-                }, "Switch Profile")
-              ),
-              
-              // User Switcher
-              showUserForm && e('div', { className: "user-switcher" },
-                e('h3', { className: "font-semibold mb-3 text-gray-800" }, "Switch Profile"),
-                e('div', { className: "user-list" },
-                  Object.keys(users).map(userName => 
-                    e('button', {
-                      key: userName,
-                      onClick: () => {
-                        switchUser(userName);
-                        setShowUserForm(false);
-                      },
-                      className: `user-chip ${userName === currentUser ? 'active' : ''}`
-                    },
-                      e('span', {}, userName),
-                      userName !== currentUser && e('button', {
-                        onClick: (event) => {
-                          event.stopPropagation();
-                          deleteUser(userName);
-                        },
-                        className: "delete-user"
-                      }, "×")
-                    )
-                  )
-                ),
-                e('div', { className: "user-form", style: { marginTop: '16px' } },
-                  e('input', {
-                    type: "text",
-                    placeholder: "Create new profile",
-                    value: newUserName,
-                    onChange: (event) => setNewUserName(event.target.value),
-                    onKeyPress: (event) => event.key === 'Enter' && createUser(),
-                    style: { flex: 1 }
-                  }),
-                  e('button', {
-                    onClick: createUser,
-                    className: "btn btn-primary",
-                    disabled: !newUserName.trim() || users[newUserName.trim()]
-                  }, "Create")
-                ),
-                users[newUserName.trim()] && e('p', { className: "text-red-600 text-xs mt-1" }, "Profile name already exists")
+                }, "Logout 🚪")
               )
             ),
 
